@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Tree from 'react-d3-tree';
-// import Tree from 'react-tree-graph';
+import USAMap from "react-usa-map";
 import { Header, Button, Input } from 'semantic-ui-react'
 import Select from 'react-select'
 import { filter, findIndex } from 'lodash'
@@ -193,6 +193,10 @@ function flatten (data, parentId = "0"){
     saveLevelPath(levelForwardingPath)
   }
 
+  const mapHandler = (event) => {
+    alert(event.target.dataset.name);
+  };
+
   return (
     <div className="App">
       <div className="App-div" style={{ margin: '15px', padding: '15px', display: 'flex' }}>
@@ -277,8 +281,35 @@ function flatten (data, parentId = "0"){
               <Button primary onClick={showPointer}>Show Forward Pointers</Button>
             </div>
           </div>}
+          {mode.value === "WORKING_SET" && <div>
+            <Header as="h3">Working Set</Header>
+            <div className="select-cache">
+              <label>Caller</label>
+              <Select onChange={setCaller} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <label>Callee</label>
+              <Select onChange={setCallee} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <div>Number of Calls</div>
+              <Input onChange={setNumberOfCalls} />
+            </div>
+            <div className="select-cache">
+              <div>Alpha</div>
+              <Input onChange={setNumberOfCalls} />
+            </div>
+            <div className="select-cache">
+              <div>Beta</div>
+              <Input onChange={setNumberOfCalls} />
+            </div>
+            <div className="select-cache cache-buttons">
+              <Button primary onClick={showPointer}>Show Working Set</Button>
+            </div>
+          </div>}
         </div>
         <div id="treeWrapper" style={{ width: '70%', height: '35em' }}>
+          {mode.value === "WORKING_SET" ? <USAMap onClick={mapHandler} /> : <>
           <Tree
             data={nodes}
             orientation="vertical"
@@ -309,6 +340,7 @@ function flatten (data, parentId = "0"){
           {levelPath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
           <strong>Level Forwarding Pointer:</strong> {levelPath}
           </div>}
+          </>}
         </div>
       </div>
     </div>
