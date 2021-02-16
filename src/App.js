@@ -3,7 +3,7 @@ import Tree from 'react-d3-tree';
 // import Tree from 'react-tree-graph';
 import { Header, Button, Input } from 'semantic-ui-react'
 import Select from 'react-select'
-import { findIndex } from 'lodash'
+import { filter, findIndex } from 'lodash'
 import 'semantic-ui-css/semantic.min.css'
 import { users } from './data/users'
 import './App.scss'
@@ -20,8 +20,12 @@ function App() {
   const [initialPath, saveIntialPath] = useState('')
   const [cachedPath, saveCachedPath] = useState('')
   const [cmr, saveCMR] = useState(0)
+  const [numberOfLookUps, saveNumberOfLookUps] = useState(0)
+  const [smax, saveSmax] = useState("")
+  const [smin, saveSmin] = useState("")
+  const [lcmr, saveLCMR] = useState(0)
   const flattenedNodes = flatten([nodes])
-
+  
   const straightPathFunc = (linkDatum, orientation) => {
     const { source, target } = linkDatum;
     return orientation === 'horizontal'
@@ -125,6 +129,48 @@ function flatten (data, parentId = "0"){
     saveThreshold(event.target.value)
   }
 
+  const setNumberOfLookups = event => {
+    saveNumberOfLookUps(event.target.value)
+  }
+
+  const setSmax = event => {
+    saveSmax(event.target.value)
+  }
+
+  const setSmin = event => {
+    saveSmin(event.target.value)
+  }
+
+  // const replicateAtNode = () => {
+  //   const childNodes = filter(flattenedNodes, { parentId: replicationNode.value })
+  //   // const allNodes = childNodes.map(node => ({ ...node, cost: 1 }));
+  //   let allNodes = [];
+  //   for (let i = 0; i < childNodes.length; i += 1) {
+  //     const newChildNodes = filter(flattenedNodes, { parentId: childNodes[i].name })
+  //     if (newChildNodes.length === 0 && i === 0) {
+  //       allNodes = childNodes.map(node => ({ ...node, cost: 1 }));
+  //       break;
+  //     }
+  //     newChildNodes.map(node => {
+  //       allNodes.push({ ...node, cost: 2 })
+  //       return node;
+  //     })
+  //   }
+  //   const totalCost = allNodes.reduce((pVal, cVal) => pVal + cVal.cost, 0)
+  //   saveLCMR(totalCost/numberOfMoves)
+  //   console.log({childNodes, allNodes, totalCost, lcmr: totalCost/numberOfMoves})
+  // }
+
+  const replicateAtNode = () => {
+    const callerIndex = findIndex(flattenedNodes, { name: caller.value })
+    const calleeIndex = findIndex(flattenedNodes, { name: callee.value })
+    const callerAndNeighbors = filter(flattenedNodes, { parentId: flattenedNodes[callerIndex].parentId })
+    const calleeAndNeighbors = filter(flattenedNodes, { parentId: flattenedNodes[calleeIndex].parentId })
+    const totalNodeCount = callerAndNeighbors.length + calleeAndNeighbors.length;
+    const lcmr = (totalNodeCount * Number(numberOfLookUps))/numberOfMoves
+    saveLCMR(lcmr)
+  }
+  console.log(typeof lcmr, lcmr > 0, smax, smin)
   return (
     <div className="App">
       <div className="App-div" style={{ margin: '15px', padding: '15px', display: 'flex' }}>
@@ -161,6 +207,36 @@ function flatten (data, parentId = "0"){
               <Button secondary onClick={getCachedPath}>Show Cached Path</Button>
             </div>
           </div>}
+          {mode.value === "REPLICATION" && <div>
+            <Header as="h3">Replication</Header>
+            <div className="select-cache">
+              <label>Caller</label>
+              <Select onChange={setCaller} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <label>Callee</label>
+              <Select onChange={setCallee} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <div>Number of Lookups</div>
+              <Input onChange={setNumberOfLookups} />
+            </div>
+            <div className="select-cache">
+              <div>Number of Moves</div>
+              <Input onChange={setNumberOfMoves} />
+            </div>
+            <div className="select-cache">
+              <div>S-max</div>
+              <Input onChange={setSmax} />
+            </div>
+            <div className="select-cache">
+              <div>S-min</div>
+              <Input onChange={setSmin} />
+            </div>
+            <div className="select-cache cache-buttons">
+              <Button primary onClick={replicateAtNode}>Replicate</Button>
+            </div>
+          </div>}
         </div>
         <div id="treeWrapper" style={{ width: '70%', height: '35em' }}>
           <Tree
@@ -179,6 +255,13 @@ function flatten (data, parentId = "0"){
           {cmr > 0 && <div style={{ width: "80%", margin: '0 auto' }}>
             <strong>CMR: </strong> {cmr}{cmr < threshold && " -->CMR is less than threshold, caching not required."}
           </div>}
+          {lcmr > 0 && <div style={{ width: "80%", margin: '0 auto' }}>
+            <strong>LCMR: </strong> {lcmr}
+          </div>}
+          {lcmr > 0 && <div style={{ width: "80%", margin: '0 auto' }}>
+            {Number(lcmr) > Number(smax) && caller.value + ' is assigned a replica.'}
+            {Number(lcmr) < Number(smin) && caller.value + ' is not used for replication.'}
+            </div>}
         </div>
       </div>
     </div>
