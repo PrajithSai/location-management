@@ -24,6 +24,8 @@ function App() {
   const [smax, saveSmax] = useState("")
   const [smin, saveSmin] = useState("")
   const [lcmr, saveLCMR] = useState(0)
+  const [simplePath, saveSimplePath] = useState('')
+  const [levelPath, saveLevelPath] = useState('')
   const flattenedNodes = flatten([nodes])
   
   const straightPathFunc = (linkDatum, orientation) => {
@@ -112,8 +114,16 @@ function flatten (data, parentId = "0"){
       label: "Caching",
       value: "CACHING"
     },{
+      label: "Forward Pointer",
+      value: "FORWARD_POINTER"
+    },
+    ,{
       label: "Replication",
       value: "REPLICATION"
+    },
+    ,{
+      label: "Working Set",
+      value: "WORKING_SET"
     }]
   }
 
@@ -170,7 +180,19 @@ function flatten (data, parentId = "0"){
     const lcmr = (totalNodeCount * Number(numberOfLookUps))/numberOfMoves
     saveLCMR(lcmr)
   }
-  console.log(typeof lcmr, lcmr > 0, smax, smin)
+  
+  const showPointer = () => {
+    const sourceIndex = findIndex(flattenedNodes, { name: caller.value })
+    const destinationIndex = findIndex(flattenedNodes, { name: callee.value })
+    const simpleForwarding = findPath(String(caller.value))
+    const simpleForwardingPath = `${simpleForwarding.reverse().join('->')}->${callee.value}`
+    const destinationNode = flattenedNodes[destinationIndex]
+    const destTemp = simpleForwarding.slice(0, simpleForwarding.length - 1)
+    const levelForwardingPath = `${destTemp.join('->')}->${destinationNode.parentId}->${destinationNode.name}`
+    saveSimplePath(simpleForwardingPath)
+    saveLevelPath(levelForwardingPath)
+  }
+
   return (
     <div className="App">
       <div className="App-div" style={{ margin: '15px', padding: '15px', display: 'flex' }}>
@@ -237,6 +259,24 @@ function flatten (data, parentId = "0"){
               <Button primary onClick={replicateAtNode}>Replicate</Button>
             </div>
           </div>}
+          {mode.value === "FORWARD_POINTER" && <div>
+            <Header as="h3">Forward Pointer</Header>
+            <div className="select-cache">
+              <label>Source</label>
+              <Select onChange={setCaller} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <label>Destination</label>
+              <Select onChange={setCallee} options={getNodeOptions()} />
+            </div>
+            <div className="select-cache">
+              <div>Number of Calls</div>
+              <Input onChange={setNumberOfCalls} />
+            </div>
+            <div className="select-cache cache-buttons">
+              <Button primary onClick={showPointer}>Show Forward Pointers</Button>
+            </div>
+          </div>}
         </div>
         <div id="treeWrapper" style={{ width: '70%', height: '35em' }}>
           <Tree
@@ -262,6 +302,13 @@ function flatten (data, parentId = "0"){
             {Number(lcmr) > Number(smax) && caller.value + ' is assigned a replica.'}
             {Number(lcmr) < Number(smin) && caller.value + ' is not used for replication.'}
             </div>}
+
+          {simplePath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
+            <strong>Simple Forwarding Pointer:</strong> {simplePath}
+            </div>}
+          {levelPath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
+          <strong>Level Forwarding Pointer:</strong> {levelPath}
+          </div>}
         </div>
       </div>
     </div>
