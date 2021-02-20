@@ -6,6 +6,7 @@ import Select from 'react-select'
 import { filter, findIndex } from 'lodash'
 import 'semantic-ui-css/semantic.min.css'
 import { users } from './data/users'
+import { getStates } from './data/USAStates'
 import './App.scss'
 
 function App() {
@@ -23,10 +24,13 @@ function App() {
   const [numberOfLookUps, saveNumberOfLookUps] = useState(0)
   const [smax, saveSmax] = useState("")
   const [smin, saveSmin] = useState("")
+  const [alpha, saveAlpha] = useState("")
+  const [beta, saveBeta] = useState("")
   const [lcmr, saveLCMR] = useState(0)
   const [simplePath, saveSimplePath] = useState('')
   const [levelPath, saveLevelPath] = useState('')
   const flattenedNodes = flatten([nodes])
+  const USStates = getStates()
   
   const straightPathFunc = (linkDatum, orientation) => {
     const { source, target } = linkDatum;
@@ -151,25 +155,13 @@ function flatten (data, parentId = "0"){
     saveSmin(event.target.value)
   }
 
-  // const replicateAtNode = () => {
-  //   const childNodes = filter(flattenedNodes, { parentId: replicationNode.value })
-  //   // const allNodes = childNodes.map(node => ({ ...node, cost: 1 }));
-  //   let allNodes = [];
-  //   for (let i = 0; i < childNodes.length; i += 1) {
-  //     const newChildNodes = filter(flattenedNodes, { parentId: childNodes[i].name })
-  //     if (newChildNodes.length === 0 && i === 0) {
-  //       allNodes = childNodes.map(node => ({ ...node, cost: 1 }));
-  //       break;
-  //     }
-  //     newChildNodes.map(node => {
-  //       allNodes.push({ ...node, cost: 2 })
-  //       return node;
-  //     })
-  //   }
-  //   const totalCost = allNodes.reduce((pVal, cVal) => pVal + cVal.cost, 0)
-  //   saveLCMR(totalCost/numberOfMoves)
-  //   console.log({childNodes, allNodes, totalCost, lcmr: totalCost/numberOfMoves})
-  // }
+  const setAlpha = event => {
+    saveAlpha(event.target.value)
+  }
+
+  const setBeta = event => {
+    saveBeta(event.target.value)
+  }
 
   const replicateAtNode = () => {
     const callerIndex = findIndex(flattenedNodes, { name: caller.value })
@@ -193,9 +185,31 @@ function flatten (data, parentId = "0"){
     saveLevelPath(levelForwardingPath)
   }
 
-  const mapHandler = (event) => {
-    alert(event.target.dataset.name);
+  const getStateOptions = () => {
+    return Object.keys(USStates).map(state => ({
+      label: USStates[state].name,
+      value: state
+    }))
+  }
+
+  const statesCustomConfig = () => {
+    return {
+      [caller.value]: {
+        fill: "navy",
+      },
+      [callee.value]: {
+        fill: "#CC0000"
+      }
+    };
   };
+
+  const showWorkingSet = () => {
+    const numerator = Number(alpha) * Number(numberOfCalls)
+    const denominator = Number(beta) * Number(numberOfMoves)
+    const shouldReplicate = numerator >= denominator
+    console.log({ caller: caller.value, callee: callee.value, alpha, beta, numberOfCalls, numberOfMoves, numerator, denominator, shouldReplicate })
+  }
+
 
   return (
     <div className="App">
@@ -285,31 +299,35 @@ function flatten (data, parentId = "0"){
             <Header as="h3">Working Set</Header>
             <div className="select-cache">
               <label>Caller</label>
-              <Select onChange={setCaller} options={getNodeOptions()} />
+              <Select onChange={setCaller} options={getStateOptions()} />
             </div>
             <div className="select-cache">
               <label>Callee</label>
-              <Select onChange={setCallee} options={getNodeOptions()} />
+              <Select onChange={setCallee} options={getStateOptions()} />
             </div>
             <div className="select-cache">
               <div>Number of Calls</div>
               <Input onChange={setNumberOfCalls} />
             </div>
             <div className="select-cache">
+              <div>Number of Moves</div>
+              <Input onChange={setNumberOfMoves} />
+            </div>
+            <div className="select-cache">
               <div>Alpha</div>
-              <Input onChange={setNumberOfCalls} />
+              <Input onChange={setAlpha} />
             </div>
             <div className="select-cache">
               <div>Beta</div>
-              <Input onChange={setNumberOfCalls} />
+              <Input onChange={setBeta} />
             </div>
             <div className="select-cache cache-buttons">
-              <Button primary onClick={showPointer}>Show Working Set</Button>
+              <Button primary onClick={showWorkingSet}>Show Working Set</Button>
             </div>
           </div>}
         </div>
         <div id="treeWrapper" style={{ width: '70%', height: '35em' }}>
-          {mode.value === "WORKING_SET" ? <USAMap onClick={mapHandler} /> : <>
+          {mode.value === "WORKING_SET" ? <USAMap customize={statesCustomConfig()} /> : <>
           <Tree
             data={nodes}
             orientation="vertical"
