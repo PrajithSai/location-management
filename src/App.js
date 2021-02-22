@@ -14,7 +14,7 @@ function App() {
   const [nodes, setNodes] = useState(users)
   const [caller, saveCaller] = useState({ label: "", value: "" })
   const [callee, saveCallee] = useState({ label: "", value: "" })
-  const [mode, setMode] = useState({ label: "Caching", value: "CACHING" })
+  const [mode, setMode] = useState({ label: "", value: "" })
   const [numberOfCalls, saveNumberOfCalls] = useState(0);
   const [numberOfMoves, saveNumberOfMoves] = useState(0);
   const [threshold, saveThreshold] = useState(0);
@@ -32,6 +32,7 @@ function App() {
   const [ws, setWS] = useState({})
   const [leafNodeParent, setLeafNodeParent] = useState({})
   const [flattenedNodes, setFlattendedNodes] = useState(flatten([nodes]))
+  const [nodesCovered, setNodesCovered] = useState({})
   const USStates = getStates()
   
   const straightPathFunc = (linkDatum, orientation) => {
@@ -177,17 +178,50 @@ function flatten (data, parentId = "0"){
     const lcmr = (totalNodeCount * Number(numberOfLookUps))/numberOfMoves
     saveLCMR(lcmr)
   }
+
+  const getChildrenByParentId = parentId => filter(flattenedNodes, { parentId })
+
+  const getParentNode = name => {
+    const index = findIndex(flattenedNodes, { name })
+    return flattenedNodes[index].parentId
+  }
+
+  const getAllLevel2Children = name => {
+    let allChildren = []
+    const temp = filter(flattenedNodes, { parentId: name })
+    for (let i = 0; i < temp.length; i += 1) {
+      allChildren = [...allChildren, ...getChildrenByParentId(temp[i].name)]
+    }
+    return allChildren
+  }
   
   const showPointer = () => {
+    const pointersByLevel = {}
     const sourceIndex = findIndex(flattenedNodes, { name: caller.value })
     const destinationIndex = findIndex(flattenedNodes, { name: callee.value })
     const simpleForwarding = findPath(String(caller.value))
     const simpleForwardingPath = `${simpleForwarding.reverse().join('->')}->${callee.value}`
+    const sourceNode = flattenedNodes[sourceIndex]
     const destinationNode = flattenedNodes[destinationIndex]
     const destTemp = simpleForwarding.slice(0, simpleForwarding.length - 1)
     const levelForwardingPath = `${destTemp.join('->')}->${destinationNode.parentId}->${destinationNode.name}`
     saveSimplePath(simpleForwardingPath)
     saveLevelPath(levelForwardingPath)
+
+    const level1SChildren = getChildrenByParentId(sourceNode.parentId)
+    const level1DChildren = getChildrenByParentId(destinationNode.parentId)
+    const level1SParent = getParentNode(sourceNode.parentId)
+    const level1DParent = getParentNode(destinationNode.parentId)
+    pointersByLevel[sourceNode.parentId] = level1SChildren.map(child => child.name)
+    pointersByLevel[destinationNode.parentId] = level1DChildren.map(child => child.name)
+    if (level1DParent !== level1SParent) {
+      const level2SAllChildren = getAllLevel2Children(level1SParent)
+      const level2DAllChildren = getAllLevel2Children(level1DParent)
+      pointersByLevel[level1SParent] = level2SAllChildren.map(child => child.name)
+      pointersByLevel[level1DParent] = level2DAllChildren.map(child => child.name)
+    }
+    setNodesCovered(pointersByLevel)
+    // console.log({ pointersByLevel })
   }
 
   const getStateOptions = () => {
@@ -261,7 +295,7 @@ function flatten (data, parentId = "0"){
     setFlattendedNodes(flatten([tempNodes]))
   }
 
-  console.log({nodes, flattenedNodes})
+  // console.log({nodes, flattenedNodes})
 
   return (
     <div className="App">
@@ -393,7 +427,7 @@ function flatten (data, parentId = "0"){
             <USAMap customize={statesCustomConfig()} />
             {Object.keys(ws).map(state => (
               <div style={{ width: "80%", margin: '10px auto' }}>
-                Working set of user in {USStates[state].name} = ({ws[state].join(',')})
+                Working set of user in {USStates[state].name} = ({ws[state].join(', ')})
               </div>
             ))}
           </> : <>
@@ -404,6 +438,7 @@ function flatten (data, parentId = "0"){
             onNodeClick={handleNodeClick}
             separation={{nonSiblings: 1, siblings: 1}}
           />
+          {mode.value === "CACHING" && <>
           {initialPath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
             <strong>Initial Path:</strong> {initialPath}
             </div>}
@@ -413,6 +448,9 @@ function flatten (data, parentId = "0"){
           {cmr > 0 && <div style={{ width: "80%", margin: '0 auto' }}>
             <strong>CMR: </strong> {cmr}{cmr < threshold && " -->CMR is less than threshold, caching not required."}
           </div>}
+          </>}
+
+          {mode.value === "REPLICATION" && <>
           {lcmr > 0 && <div style={{ width: "80%", margin: '0 auto' }}>
             <strong>LCMR: </strong> {lcmr}
           </div>}
@@ -420,13 +458,21 @@ function flatten (data, parentId = "0"){
             {Number(lcmr) > Number(smax) && caller.value + ' is assigned a replica.'}
             {Number(lcmr) < Number(smin) && caller.value + ' is not used for replication.'}
             </div>}
+          </>}
 
+          {mode.value === "FORWARD_POINTER" && <>
           {simplePath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
             <strong>Simple Forwarding Pointer:</strong> {simplePath}
             </div>}
           {levelPath !== '' && <div style={{ width: "80%", margin: '0 auto' }}>
           <strong>Level Forwarding Pointer:</strong> {levelPath}
           </div>}
+          <div style={{ width: "80%", margin: '0 auto' }}>
+            {Object.keys(nodesCovered).map(node => <div>
+              Nodes covered at <strong>level {node}</strong> = {nodesCovered[node].join(", ")} 
+            </div>)}
+          </div>
+          </>}
           </>}
         </div>
       </div>
