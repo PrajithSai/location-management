@@ -3,7 +3,7 @@ import Tree from 'react-d3-tree';
 import USAMap from "react-usa-map";
 import { Header, Button, Input } from 'semantic-ui-react'
 import Select from 'react-select'
-import { filter, findIndex } from 'lodash'
+import { filter, findIndex, cloneDeep } from 'lodash'
 import 'semantic-ui-css/semantic.min.css'
 import { users } from './data/users'
 import { getStates } from './data/USAStates'
@@ -29,7 +29,9 @@ function App() {
   const [lcmr, saveLCMR] = useState(0)
   const [simplePath, saveSimplePath] = useState('')
   const [levelPath, saveLevelPath] = useState('')
-  const flattenedNodes = flatten([nodes])
+  const [ws, setWS] = useState({})
+  const [leafNodeParent, setLeafNodeParent] = useState({})
+  const [flattenedNodes, setFlattendedNodes] = useState(flatten([nodes]))
   const USStates = getStates()
   
   const straightPathFunc = (linkDatum, orientation) => {
@@ -115,20 +117,23 @@ function flatten (data, parentId = "0"){
 
   const getModeOptions = () => {
     return [{
-      label: "Caching",
-      value: "CACHING"
+      label: "Add a Leaf Node",
+      value: "ADD_LEAF_NODE"
     },{
-      label: "Forward Pointer",
-      value: "FORWARD_POINTER"
-    },
-    ,{
       label: "Replication",
       value: "REPLICATION"
     },
     ,{
       label: "Working Set",
       value: "WORKING_SET"
-    }]
+    },{
+      label: "Caching",
+      value: "CACHING"
+    },{
+      label: "Forward Pointer",
+      value: "FORWARD_POINTER"
+    },
+    ]
   }
 
   const setNumberOfCalls = (event) => {
@@ -207,9 +212,56 @@ function flatten (data, parentId = "0"){
     const numerator = Number(alpha) * Number(numberOfCalls)
     const denominator = Number(beta) * Number(numberOfMoves)
     const shouldReplicate = numerator >= denominator
-    console.log({ caller: caller.value, callee: callee.value, alpha, beta, numberOfCalls, numberOfMoves, numerator, denominator, shouldReplicate })
+    let wState = {...ws}
+    if (shouldReplicate && wState[callee.value] !== undefined && !wState[callee.value].includes(caller.label)) {
+      wState[callee.value].push(caller.label)
+    } else if (!shouldReplicate && wState[callee.value] !== undefined && !wState[callee.value].includes(caller.label)) {
+      wState[callee.value] = wState[callee.value].filter(val => val !== caller.label)
+    } else {
+      if (wState[callee.value] === undefined) wState[callee.value] = []
+    }
+    setWS(wState)
+    // console.log({ caller: caller.value, callee: callee.value, alpha, beta, numberOfCalls, numberOfMoves, numerator, denominator, shouldReplicate })
   }
 
+  const getLeafNodeOptions = () => {
+    return [{
+      label: "3",
+      value: "3"
+    },{
+      label: "4",
+      value: "4"
+    },{
+      label: "5",
+      value: "5"
+    },{
+      label: "6",
+      value: "6"
+    },]
+  }
+
+  const addLeafNode = () => {
+    const newNode = lastNodeNumber + 1;
+    const tempNodes = cloneDeep(nodes)
+    if (leafNodeParent.value === "3") {
+      tempNodes.children[0].children[0].children.push({ "name": `${newNode}` })
+    }
+    if (leafNodeParent.value === "4") {
+      tempNodes.children[0].children[1].children.push({ "name": `${newNode}` })
+    }
+    if (leafNodeParent.value === "5") {
+      tempNodes.children[1].children[0].children.push({ "name": `${newNode}` })
+    }
+    if (leafNodeParent.value === "6") {
+      tempNodes.children[1].children[1].children.push({ "name": `${newNode}` })
+    }
+    // console.log(leafNodeParent, tempNodes, tempNodes.children[0].children[0])
+    incrementLastNodeNumber(newNode)
+    setNodes(tempNodes)
+    setFlattendedNodes(flatten([tempNodes]))
+  }
+
+  console.log({nodes, flattenedNodes})
 
   return (
     <div className="App">
@@ -295,6 +347,16 @@ function flatten (data, parentId = "0"){
               <Button primary onClick={showPointer}>Show Forward Pointers</Button>
             </div>
           </div>}
+          {mode.value === "ADD_LEAF_NODE" && <div>
+            <Header as="h3">Add a Leaf Node</Header>
+            <div className="select-cache">
+              <label>Select Parent Node</label>
+              <Select onChange={setLeafNodeParent} options={getLeafNodeOptions()} />
+            </div>
+            <div className="select-cache cache-buttons">
+              <Button primary onClick={addLeafNode}>Save</Button>
+            </div>
+          </div>}
           {mode.value === "WORKING_SET" && <div>
             <Header as="h3">Working Set</Header>
             <div className="select-cache">
@@ -327,7 +389,14 @@ function flatten (data, parentId = "0"){
           </div>}
         </div>
         <div id="treeWrapper" style={{ width: '70%', height: '35em' }}>
-          {mode.value === "WORKING_SET" ? <USAMap customize={statesCustomConfig()} /> : <>
+          {mode.value === "WORKING_SET" ? <>
+            <USAMap customize={statesCustomConfig()} />
+            {Object.keys(ws).map(state => (
+              <div style={{ width: "80%", margin: '10px auto' }}>
+                Working set of user in {USStates[state].name} = ({ws[state].join(',')})
+              </div>
+            ))}
+          </> : <>
           <Tree
             data={nodes}
             orientation="vertical"
